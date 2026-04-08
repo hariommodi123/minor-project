@@ -525,6 +525,57 @@ const Chatbot = ({ user }) => {
 
                 const finalizeBooking = async () => {
                     try {
+                        if (bookingData.total === 0) {
+                            const bookingPayload = {
+                                bookingId: `LXM-${Math.floor(Math.random() * 100000)}`,
+                                firebaseUid: user?.uid || null,
+                                visitorName: user?.name || 'Anonymous Visitor',
+                                ticketType: bookingData.ticketType,
+                                date: bookingData.date,
+                                quantity: bookingData.quantity,
+                                totalAmount: bookingData.total,
+                                guestDetails: bookingData.guestDetails,
+                                language: bookingData.language,
+                                razorpayOrderId: "FREE_ENTRY_" + Date.now(),
+                                paymentId: "FREE_ENTRY_PAYMENT"
+                            }
+
+                            await axios.post(`${API_BASE_URL}/bookings`, bookingPayload)
+
+                            addMessage(t('success'), 'bot')
+                            setMessages(prev => [...prev, {
+                                id: Date.now(),
+                                type: 'bot',
+                                isComponent: true,
+                                content: <div className="ticket-success">
+                                    <CheckCircle color="#DAA520" size={48} />
+                                    <h4>{t('confirmed')}</h4>
+                                    <p>ID: #{bookingPayload.bookingId}</p>
+                                </div>
+                            }])
+                            setStep('FINISHED')
+
+                            // Auto-close sequence
+                            setTimeout(() => {
+                                addMessage(t('reopen'), 'bot')
+                                setTimeout(() => {
+                                    setIsOpen(false)
+                                    navigate('/history?new_booking=true')
+
+                                    // Reset for next session after a short delay (once closed)
+                                    setTimeout(() => {
+                                        setMessages([
+                                            { id: 1, type: 'bot', content: TRANSLATIONS[bookingData.language].welcome, options: [TRANSLATIONS[bookingData.language].start] }
+                                        ])
+                                        setStep('GREETING')
+                                    }, 500)
+                                }, 4000)
+                            }, 2000)
+                            
+                            setIsProcessing(false)
+                            return
+                        }
+
                         const orderRes = await axios.post(`${API_BASE_URL}/razorpay/order`, {
                             amount: bookingData.total
                         })
